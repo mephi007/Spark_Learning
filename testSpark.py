@@ -40,7 +40,7 @@ from Postgres_Pipeline import Postgres_Pipeline
 # sql_df.printSchema()
 # sql_df.show()
 
-if __name__ == '__main__':
+def pipeline_creation():
     PSQL_SERVERNAME = "localhost"
     PSQL_PORTNUMBER = 5432
     PSQL_DBNAME = "spark_learn"
@@ -51,7 +51,48 @@ if __name__ == '__main__':
     jar_path = "/Users/sumitroy/Downloads/postgresql-42.6.0.jar"
     postgres_pipeline = Postgres_Pipeline(PSQL_SERVERNAME, PSQL_PORTNUMBER, PSQL_DBNAME, PSQL_USRRNAME, PSQL_PASSWORD, TABLE_NAME, jar_path)
     spark = postgres_pipeline.create_spark_session()
-    df = postgres_pipeline.read_dbtable(spark)
-    postgres_pipeline.write_files(df=df, format='csv', mode='overwrite',path='./flight_data/',include_headers=True,delimiter='|')
-    df = postgres_pipeline.read_files(spark=spark, format='csv', path='./flight_data/part-*.csv')
+    query = 'select * from flight_data where "ORIGIN_COUNTRY_NAME"=\'India\''
+    df = postgres_pipeline.read_dbtable(spark, query)
+    # postgres_pipeline.write_files(df=df, format='csv', mode='overwrite',path='./flight_data/',include_headers=True,delimiter='|')
+    # df = postgres_pipeline.read_files(spark=spark, format='csv', path='./flight_data/part-*.csv')
     df.show(truncate=False)
+
+def period_trend_data_to_db():
+    PSQL_SERVERNAME = "localhost"
+    PSQL_PORTNUMBER = 5432
+    PSQL_DBNAME = "spark_learn"
+    PSQL_USRRNAME = "sumitroy"
+    PSQL_PASSWORD = "admin"
+    TABLE_NAME = "period_trend_data"
+    URL = f"jdbc:postgresql://{PSQL_SERVERNAME}/{PSQL_DBNAME}"
+    jar_path = "/Users/sumitroy/Downloads/postgresql-42.6.0.jar"
+    postgres_pipeline = Postgres_Pipeline(PSQL_SERVERNAME, PSQL_PORTNUMBER, PSQL_DBNAME, PSQL_USRRNAME, PSQL_PASSWORD, TABLE_NAME, jar_path)
+    spark = postgres_pipeline.create_spark_session()
+    df = postgres_pipeline.read_files(spark=spark, format='csv', path='./period_trend_data_6M.csv', header=True, delimiter=",")
+    postgres_pipeline.write_to_table(df=df)
+    # df.show(truncate=False)
+
+def period_trend_data_from_db():
+    PSQL_SERVERNAME = "localhost"
+    PSQL_PORTNUMBER = 5432
+    PSQL_DBNAME = "spark_learn"
+    PSQL_USRRNAME = "sumitroy"
+    PSQL_PASSWORD = "admin"
+    TABLE_NAME = "period_trend_data"
+    URL = f"jdbc:postgresql://{PSQL_SERVERNAME}/{PSQL_DBNAME}"
+    jar_path = "/Users/sumitroy/Downloads/postgresql-42.6.0.jar"
+    postgres_pipeline = Postgres_Pipeline(PSQL_SERVERNAME, PSQL_PORTNUMBER, PSQL_DBNAME, PSQL_USRRNAME, PSQL_PASSWORD, TABLE_NAME, jar_path)
+    spark = postgres_pipeline.create_spark_session()
+    # query = 'select DATE(max(date)) as HIGH_DATE from period_trend_data'
+    low_date = '2022-11-28'
+    high_date = '2023-05-26'
+    batchSize = 10
+    query_in_range = 'select * from period_trend_data where DATE(date) <= \'{high_date}\' and DATE(date) > \'{low_date}\''
+    # postgres_pipeline.get_high_time(spark=spark, query=query)
+    postgres_pipeline.read_query_in_range_date(spark=spark, query=query_in_range, low_date=low_date, high_date=high_date, batchSize=batchSize)
+    # df.show(truncate=False)
+
+if __name__ == '__main__':
+    # pipeline_creation()
+    # period_trend_data_to_db()
+    period_trend_data_from_db()
