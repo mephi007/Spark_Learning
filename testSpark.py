@@ -3,7 +3,9 @@ findspark.init()
 from pyspark.sql import SparkSession
 from pyspark.sql.types import StructType,StructField, StringType, IntegerType
 from Postgres_Pipeline import Postgres_Pipeline
-
+from datetime import datetime
+from datetime import timedelta
+import time
 
 
 
@@ -84,13 +86,32 @@ def period_trend_data_from_db():
     postgres_pipeline = Postgres_Pipeline(PSQL_SERVERNAME, PSQL_PORTNUMBER, PSQL_DBNAME, PSQL_USRRNAME, PSQL_PASSWORD, TABLE_NAME, jar_path)
     spark = postgres_pipeline.create_spark_session()
     # query = 'select DATE(max(date)) as HIGH_DATE from period_trend_data'
-    low_date = '2022-11-28'
-    high_date = '2023-05-26'
-    batchSize = 10
+    low_date = "2022-11-28"
+    low_date = datetime.strptime(low_date, "%Y-%m-%d")
+    # high_date = '2023-05-26'
+    # high_date = datetime.strptime(low_date, "%Y-%m-%d") 
+    poll_frequency = 120
+    batchSize = 1
     query_in_range = 'select * from period_trend_data where DATE(date) <= \'{high_date}\' and DATE(date) > \'{low_date}\''
+    period_trend_data_from_db_real_time(spark=spark, postgres_pipeline=postgres_pipeline, low_date=low_date, high_date=low_date, batchSize=batchSize, query=query_in_range)
     # postgres_pipeline.get_high_time(spark=spark, query=query)
-    postgres_pipeline.read_query_in_range_date(spark=spark, query=query_in_range, low_date=low_date, high_date=high_date, batchSize=batchSize)
+    # postgres_pipeline.read_query_in_range_date(spark=spark, query=query_in_range, low_date=low_date, high_date=high_date, batchSize=batchSize)
     # df.show(truncate=False)
+
+def period_trend_data_from_db_real_time(spark, postgres_pipeline, low_date, high_date, batchSize, query):
+    get_high_date_query = 'select DATE(max(date)) as HIGH_DATE from period_trend_data'
+    while(True):
+        if(str(low_date) <= postgres_pipeline.get_high_time(spark=spark, query=get_high_date_query)):
+            batch_df = postgres_pipeline.read_query_in_range_date(spark=spark, query=query, low_date=low_date, high_date=high_date)
+            batch_df.show(truncate=False)
+            postgres_pipeline.write_files(df=batch_df, format='csv', mode='append',path='./period_trend_data/',include_headers=True,delimiter='|')
+            low_date = high_date
+            high_date = high_date + timedelta(days=batchSize)
+        time.sleep(10)
+
+    
+
+
 
 if __name__ == '__main__':
     # pipeline_creation()

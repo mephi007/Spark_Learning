@@ -73,6 +73,7 @@ class Postgres_Pipeline:
         high_date = df.select(df['high_date']).collect()[0].high_date
         # print(high_date)
         self.high_time = high_date
+        return str(high_date)
 
     # def read_query_in_range_date(self, spark, query, low_date, high_date,batchSize):
     #     query = query.format(low_date=self.low_date, high_date=self.high_date)
@@ -83,7 +84,7 @@ class Postgres_Pipeline:
     #     df = self.read_dbtable(spark=spark, query=query, table_name=None)
     #     print(df.count())
 
-    def read_query_in_range_date(self, spark, query, low_date, high_date, batchSize):
+    def read_query_in_range_date(self, spark, query, low_date, high_date):
         query = query.format(low_date=low_date, high_date=high_date)
         return self.read_dbtable(spark=spark, query=query, table_name=None)
     
